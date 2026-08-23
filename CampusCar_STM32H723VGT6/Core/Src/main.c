@@ -422,13 +422,12 @@ int main(void)
 #endif
 /* ROLLBACK-PWM-2-END ----------------------------------------------------------- */
 
-  /* 主循环：PC14 闪烁 + 等待串口命令 + UART7 心跳 + 反馈帧 + 键盘档位控制 */
+  /* 主循环：PC14 闪烁 + 等待串口命令 + UART7 心跳 + 反馈帧 + 舵机控制 */
   uint32_t last_led_tick = HAL_GetTick();
   uint32_t last_cmd_tick = HAL_GetTick();
   uint32_t last_feedback_tick = HAL_GetTick();
   uint8_t cmd_buffer[SERIAL_COMMAND_SIZE] = {0};
   SerialCommand current_cmd = {0};
-  uint8_t key_buffer[1];  /* 键盘控制缓冲区 */
 
   while (1)
   {
