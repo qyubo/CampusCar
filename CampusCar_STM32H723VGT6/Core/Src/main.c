@@ -73,9 +73,9 @@
 #define SERVO_TIM_CH          TIM_CHANNEL_1
 
 /* ====== 舵机三档位定义 ====== */
-#define SERVO_GEAR_1    60   /* 档位1：60度 */
-#define SERVO_GEAR_2    90   /* 档位2：90度中位 */
-#define SERVO_GEAR_3    120  /* 档位3：120度 */
+#define SERVO_GEAR_1    35   /* 档位1：60度 */
+#define SERVO_GEAR_2    85   /* 档位2：90度中位 */
+#define SERVO_GEAR_3    136  /* 档位3：120度 */
 
 static uint8_t current_gear = 1;  /* 当前档位 */
 /* USER CODE END PD */
@@ -88,6 +88,10 @@ static uint8_t current_gear = 1;  /* 当前档位 */
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+/* 舵机自动循环变量 */
+static uint32_t servo_last_switch_tick = 0;
+static uint8_t servo_cycle_step = 0;  // 0:档位1, 1:档位2, 2:档位3, 3:档位2
+
 /* 命令帧结构 (10 字节) - 扩展hoverboard协议，支持舵机控制 */
 typedef struct __attribute__((packed)) {
     uint16_t start;       /* 帧头 0xABCD */
@@ -440,12 +444,15 @@ int main(void)
 #endif
 /* ROLLBACK-PWM-2-END ----------------------------------------------------------- */
 
-  /* 主循环：PC14 闪烁 + 等待串口命令 + UART7 心跳 + 反馈帧 + 舵机控制 */
+  /* 主循环：PC14 闪烁 + 等待串口命令 + UART7 心跳 + 反馈帧 + 舵机自动循环 */
   uint32_t last_led_tick = HAL_GetTick();
   uint32_t last_cmd_tick = HAL_GetTick();
   uint32_t last_feedback_tick = HAL_GetTick();
   uint8_t cmd_buffer[SERIAL_COMMAND_SIZE] = {0};
   SerialCommand current_cmd = {0};
+  
+  servo_last_switch_tick = HAL_GetTick();  /* 初始化舵机切换时间 */
+  servo_cycle_step = 0;  /* 从档位1开始 */
 
   while (1)
   {
@@ -454,6 +461,36 @@ int main(void)
 
     /* PC14 持续闪烁 */
     uint32_t current_tick = HAL_GetTick();
+    
+    /* ========== 舵机自动循环：每3秒切换档位 (1→2→3→2→1...) ========== */
+    if ((current_tick - servo_last_switch_tick) >= 3000)
+    {
+      servo_last_switch_tick = current_tick;
+      
+      switch (servo_cycle_step)
+      {
+        case 0:
+          Servo_SetGear(1);  /* 档位1: 60° */
+          debug_print("[AUTO] Servo cycle -> Gear 1\r\n");
+          servo_cycle_step = 1;
+          break;
+        case 1:
+          Servo_SetGear(2);  /* 档位2: 90° */
+          debug_print("[AUTO] Servo cycle -> Gear 2\r\n");
+          servo_cycle_step = 2;
+          break;
+        case 2:
+          Servo_SetGear(3);  /* 档位3: 120° */
+          debug_print("[AUTO] Servo cycle -> Gear 3\r\n");
+          servo_cycle_step = 3;
+          break;
+        case 3:
+          Servo_SetGear(2);  /* 返回档位2: 90° */
+          debug_print("[AUTO] Servo cycle -> Gear 2\r\n");
+          servo_cycle_step = 0;  /* 下一轮从档位1开始 */
+          break;
+      }
+    }
     if ((current_tick - last_led_tick) >= 500)
     {
       last_led_tick = current_tick;
