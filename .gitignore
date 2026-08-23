@@ -61,6 +61,9 @@ Thumbs.db
 *.key
 *.pem
 
+# === 排除不上传的硬件工程 ===
+CampusCar_STM32H723VGT6/
+
 # === 项目数据 / 历史内容 ===
 datasets/training/
 datasets/testing/
