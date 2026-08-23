@@ -73,9 +73,9 @@
 #define SERVO_TIM_CH          TIM_CHANNEL_1
 
 /* ====== 舵机三档位定义 ====== */
-#define SERVO_GEAR_1    90   /* 档位1：中间位置 */
-#define SERVO_GEAR_2    60   /* 档位2：向线束方向转30° (如果不对改成120) */
-#define SERVO_GEAR_3    30   /* 档位3：继续向线束方向转30° (如果不对改成150) */
+#define SERVO_GEAR_1    60   /* 档位1：60度 */
+#define SERVO_GEAR_2    90   /* 档位2：90度中位 */
+#define SERVO_GEAR_3    120  /* 档位3：120度 */
 
 static uint8_t current_gear = 1;  /* 当前档位 */
 /* USER CODE END PD */
@@ -338,9 +338,27 @@ int main(void)
     debug_print("[ERR] Servo init failed!\r\n");
   } else {
     debug_print("[SERVO] Init OK.\r\n");
-    /* 初始化到档位1（90度中间位置） */
+    
+    /* 三档位测试：每个档位停留1秒 */
+    debug_print("[SERVO] Testing 3 gears...\r\n");
+    
+    debug_print("[SERVO] Gear 1 -> 60°\r\n");
     Servo_SetGear(1);
-    debug_print("[SERVO] Ready for manual control (press 1/2/3).\r\n");
+    HAL_Delay(1000);
+    
+    debug_print("[SERVO] Gear 2 -> 90°\r\n");
+    Servo_SetGear(2);
+    HAL_Delay(1000);
+    
+    debug_print("[SERVO] Gear 3 -> 120°\r\n");
+    Servo_SetGear(3);
+    HAL_Delay(1000);
+    
+    /* 测试完成，回到档位2（中位） */
+    debug_print("[SERVO] Test complete, back to Gear 2 (90°)\r\n");
+    Servo_SetGear(2);
+    
+    debug_print("[SERVO] Ready for control via UART protocol.\r\n");
   }
 
 /* ROLLBACK-PWM-BEGIN (使用新模块) */
