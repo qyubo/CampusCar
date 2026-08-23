@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>lidar_obstacle_detector</name>
+  <version>1.0.0</version>
+  <description>LiDAR-based obstacle detection</description>
+  <maintainer email="dev@cri.robot">CRI Team</maintainer>
+  <license>MIT</license>
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>pavement_interfaces</depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
