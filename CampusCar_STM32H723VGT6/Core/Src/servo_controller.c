@@ -10,7 +10,7 @@
 #include "main.h"
 
 /* ====== 硬件配置 ====== */
-#define SERVO_HTIM           htim2         /* TIM2: 50Hz (PSC=199, ARR=19999) */
+#define SERVO_HTIM           htim2         /* TIM2: 50Hz (PSC=191, ARR=19999) */
 #define SERVO_TIM_CH         TIM_CHANNEL_1 /* CH1 → PA00 */
 
 /* ====== MG996R 180° 舵机脉宽参数 (1 count = 1μs) ====== */
