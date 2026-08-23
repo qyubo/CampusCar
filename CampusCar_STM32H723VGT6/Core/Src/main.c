@@ -336,33 +336,14 @@ int main(void)
     HAL_Delay(200);
   }
 
-  /* ============== 舵机初始化和测试（使用新模块）============== */
+  /* ============== 舵机初始化（使用新模块）============== */
   debug_print("[SERVO] Init MG996R servo on TIM2_CH1 (PA00)...\r\n");
   if (Servo_Init() != 0) {
     debug_print("[ERR] Servo init failed!\r\n");
   } else {
     debug_print("[SERVO] Init OK.\r\n");
-    
-    /* 三档位测试：每个档位停留1秒 */
-    debug_print("[SERVO] Testing 3 gears...\r\n");
-    
-    debug_print("[SERVO] Gear 1 -> 60°\r\n");
-    Servo_SetGear(1);
-    HAL_Delay(1000);
-    
-    debug_print("[SERVO] Gear 2 -> 90°\r\n");
-    Servo_SetGear(2);
-    HAL_Delay(1000);
-    
-    debug_print("[SERVO] Gear 3 -> 120°\r\n");
-    Servo_SetGear(3);
-    HAL_Delay(1000);
-    
-    /* 测试完成，回到档位2（中位） */
-    debug_print("[SERVO] Test complete, back to Gear 2 (90°)\r\n");
-    Servo_SetGear(2);
-    
-    debug_print("[SERVO] Ready for control via UART protocol.\r\n");
+    Servo_SetGear(1);  /* 初始化到档位1 */
+    debug_print("[SERVO] Starting auto-cycle mode (1->2->3->2->1...).\r\n");
   }
 
 /* ROLLBACK-PWM-BEGIN (使用新模块) */
