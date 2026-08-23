@@ -66,27 +66,7 @@ datasets/training/
 datasets/testing/
 brain/ue5_project/
 tools/rtk_original/
-nuc/tools/
-docs/tools/rtk_original/
-docs/nuc/tools/rtk_original/
 archive/backups/*.zip
 archive/old_versions/
 CyberLubanTwin/
-
-# === 大型构建产物与本地数据 ===
-**/Binaries/
-**/Content/Paks/
-**/Content/Movies/
-**/RoadDefect/.git_disabled/
-**/Road-Damage-and-Defect-Recognition-Model/.git_disabled/
-*.exe
-*.pdb
-*.dll
-*.ucas
-*.utoc
-*.pak
-*.zip
-*.mp4
-*.m4v
-*.pt
 
