@@ -6,4 +6,4 @@ vision_defect_detector:
     device: "cpu"
     enable_visualization: true
     defect_id_prefix: "vision"
-    image_topic: "/camera/image_raw"
+    image_topic: "/camera/color/image_raw"

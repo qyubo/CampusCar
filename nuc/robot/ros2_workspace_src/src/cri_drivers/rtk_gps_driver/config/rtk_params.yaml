@@ -9,9 +9,11 @@ rtk_gps_node:
     serial_tx_topic: /rtk/serial_tx
     status_topic: /rtk/status
     publish_invalid_fix: false
-    ntrip_enabled: false
-    ntrip_server: ""
-    ntrip_port: 2101
-    ntrip_mountpoint: ""
-    ntrip_user: ""
-    ntrip_password: ""
+    log_received_gga: true
+    log_gga_period_sec: 1.0
+    ntrip_enabled: true
+    ntrip_server: "101.42.128.234"
+    ntrip_port: 8002
+    ntrip_mountpoint: "RTCM32_GRECJ2"
+    ntrip_user: "sgpgpyb2695"
+    ntrip_password: "WKTlM4v5"

@@ -38,7 +38,7 @@ class VisionDefectDetectorNode(Node):
         self.declare_parameter('device', 'cpu')
         self.declare_parameter('enable_visualization', True)
         self.declare_parameter('defect_id_prefix', 'vision')
-        self.declare_parameter('image_topic', '/camera/image_raw')
+        self.declare_parameter('image_topic', '/camera/color/image_raw')
 
         self.model_path = self.get_parameter('model_path').value
         self.confidence_threshold = float(self.get_parameter('confidence_threshold').value)

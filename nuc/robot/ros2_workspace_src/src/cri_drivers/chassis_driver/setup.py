@@ -22,6 +22,8 @@ setup(
     entry_points={
         'console_scripts': [
             'chassis_driver_node = chassis_driver.chassis_driver_node:main',
+            'servo_keyboard_control = chassis_driver.servo_keyboard_control:main',
+            'servo_uart_driver = chassis_driver.servo_uart_driver:main',
         ],
     },
 )

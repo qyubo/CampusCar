@@ -23,6 +23,7 @@ setup(
     entry_points={
         'console_scripts': [
             'dynamic_roadmap_node = dynamic_roadmap.dynamic_roadmap_node:main',
+            'fixed_waypoint_follower_node = dynamic_roadmap.fixed_waypoint_follower_node:main',
         ],
     },
 )

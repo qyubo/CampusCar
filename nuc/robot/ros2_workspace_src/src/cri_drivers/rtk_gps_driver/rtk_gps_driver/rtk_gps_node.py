@@ -44,6 +44,8 @@ class RTKGPSNode(Node):
         self.declare_parameter("reconnect_period_sec", 2.0)
         self.declare_parameter("status_period_sec", 1.0)
         self.declare_parameter("publish_invalid_fix", False)
+        self.declare_parameter("log_received_gga", True)
+        self.declare_parameter("log_gga_period_sec", 1.0)
         self.declare_parameter("nmea_topic", "/gps/nmea")
         self.declare_parameter("fix_topic", "/fix")
         self.declare_parameter("serial_rx_topic", "/rtk/serial_rx")
@@ -69,6 +71,8 @@ class RTKGPSNode(Node):
         self.publish_invalid_fix = bool(
             self.get_parameter("publish_invalid_fix").value
         )
+        self.log_received_gga = bool(self.get_parameter("log_received_gga").value)
+        self.log_gga_period = float(self.get_parameter("log_gga_period_sec").value)
         self.ntrip_enabled = bool(self.get_parameter("ntrip_enabled").value)
         self.ntrip_server = str(self.get_parameter("ntrip_server").value)
         self.ntrip_port = int(self.get_parameter("ntrip_port").value)
@@ -102,6 +106,8 @@ class RTKGPSNode(Node):
         self.active_port = ""
         self.ntrip_socket: Optional[socket.socket] = None
         self.ntrip_header = bytearray()
+        self.ntrip_chunked = False
+        self.ntrip_chunk_buffer = bytearray()
         self.ntrip_connected = False
         self.ntrip_next_retry = 0.0
         self.last_gga: Optional[GGAFix] = None
@@ -113,6 +119,7 @@ class RTKGPSNode(Node):
         self.nmea_count = 0
         self.rtcm_count = 0
         self.last_rx_time = 0.0
+        self.last_gga_log = 0.0
         self.last_error = ""
 
         self.read_timer = self.create_timer(self.read_period, self._poll)
@@ -211,7 +218,21 @@ class RTKGPSNode(Node):
             self.nmea_count += 1
             gga = parse_gga(sentence)
             if gga is not None:
+                self._log_received_gga(gga)
                 self._publish_fix(gga)
+
+    def _log_received_gga(self, gga: GGAFix) -> None:
+        if not self.log_received_gga:
+            return
+        now = time.monotonic()
+        if now - self.last_gga_log < self.log_gga_period:
+            return
+        self.last_gga_log = now
+        self.get_logger().info(
+            f"收到 GPS 数据: lat={gga.latitude:.8f}, lon={gga.longitude:.8f}, "
+            f"alt={gga.altitude:.2f}m, quality={quality_name(gga.quality)}, "
+            f"sat={gga.satellites}, hdop={gga.hdop}"
+        )
 
     def _publish_fix(self, gga: GGAFix) -> None:
         self.last_gga = gga
@@ -257,16 +278,22 @@ class RTKGPSNode(Node):
                 f"{self.ntrip_user}:{self.ntrip_password}".encode()
             ).decode()
             request = (
-                f"GET /{self.ntrip_mountpoint} HTTP/1.0\r\n"
-                "User-Agent: rtk_gps_driver/1.0\r\n"
+                f"GET /{self.ntrip_mountpoint} HTTP/1.1\r\n"
+                f"Host: {self.ntrip_server}:{self.ntrip_port}\r\n"
+                "Ntrip-Version: Ntrip/2.0\r\n"
+                "User-Agent: NTRIP rtk_gps_driver/1.0\r\n"
                 "Accept: */*\r\n"
-                "Connection: keep-alive\r\n"
+                "Connection: close\r\n"
                 f"Authorization: Basic {credentials}\r\n\r\n"
             ).encode()
             sock.sendall(request)
+            sock.sendall((self.last_gga.sentence + "\r\n").encode())
+            self.last_gga_sent = time.monotonic()
             sock.setblocking(False)
             self.ntrip_socket = sock
             self.ntrip_header.clear()
+            self.ntrip_chunked = False
+            self.ntrip_chunk_buffer.clear()
             self.ntrip_connected = False
             self.get_logger().info(
                 f"已连接 NTRIP {self.ntrip_server}:{self.ntrip_port}/{self.ntrip_mountpoint}"
@@ -292,20 +319,46 @@ class RTKGPSNode(Node):
                     header = bytes(self.ntrip_header[:marker]).decode(
                         "ascii", errors="ignore"
                     )
+                    header_line = header.splitlines()[:1]
+                    self.ntrip_chunked = "transfer-encoding: chunked" in header.lower()
+                    self.get_logger().info(f"NTRIP 响应: {header_line}")
                     body = bytes(self.ntrip_header[marker + 4 :])
                     if "200" not in header:
                         raise ConnectionError(f"NTRIP 返回非 200: {header.splitlines()[:1]}")
                     self.ntrip_connected = True
                     self.get_logger().info("NTRIP 认证成功，开始转发 RTCM")
                     if body:
-                        self._forward_rtcm(body)
+                        self._handle_rtcm_payload(body)
                 else:
-                    self._forward_rtcm(payload)
+                    self._handle_rtcm_payload(payload)
         except BlockingIOError:
             return
         except (OSError, ConnectionError) as exc:
             self.last_error = f"NTRIP 接收停止: {exc}"
             self._close_ntrip()
+
+    def _handle_rtcm_payload(self, payload: bytes) -> None:
+        if not self.ntrip_chunked:
+            self._forward_rtcm(payload)
+            return
+        self.ntrip_chunk_buffer.extend(payload)
+        while True:
+            marker = self.ntrip_chunk_buffer.find(b"\r\n")
+            if marker < 0:
+                return
+            size_text = self.ntrip_chunk_buffer[:marker].split(b";", 1)[0]
+            try:
+                chunk_size = int(size_text, 16)
+            except ValueError as exc:
+                raise ConnectionError("NTRIP chunked 数据格式错误") from exc
+            chunk_start = marker + 2
+            chunk_end = chunk_start + chunk_size
+            if len(self.ntrip_chunk_buffer) < chunk_end + 2:
+                return
+            if chunk_size == 0:
+                raise ConnectionError("NTRIP chunked 数据结束")
+            self._forward_rtcm(bytes(self.ntrip_chunk_buffer[chunk_start:chunk_end]))
+            del self.ntrip_chunk_buffer[: chunk_end + 2]
 
     def _forward_rtcm(self, payload: bytes) -> None:
         self.rtcm_count += len(payload)
@@ -362,12 +415,13 @@ def main(args=None) -> None:
     node = RTKGPSNode()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
         node.close()
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

@@ -2,9 +2,10 @@ orbbec_camera:
   ros__parameters:
     frame_id: "orbbec_color_frame"
     depth_frame_id: "orbbec_depth_frame"
-    width: 640
-    height: 480
+    width: 1280
+    height: 720
     fps: 30
     timeout_ms: 1000
     enable_color: true
     enable_depth: true
+    camera_info_url: "/home/qyb413/CyberLuban/nuc/robot/ros2_workspace_src/src/cri_drivers/hikrobot_camera/config/orbbec_color_camera_info.yaml"

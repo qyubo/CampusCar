@@ -16,6 +16,7 @@ def generate_launch_description():
             DeclareLaunchArgument("ntrip_mountpoint", default_value=""),
             DeclareLaunchArgument("ntrip_user", default_value=""),
             DeclareLaunchArgument("ntrip_password", default_value=""),
+            DeclareLaunchArgument("log_received_gga", default_value="true"),
             Node(
                 package="rtk_gps_driver",
                 executable="rtk_gps_node",
@@ -37,6 +38,9 @@ def generate_launch_description():
                         "ntrip_mountpoint": LaunchConfiguration("ntrip_mountpoint"),
                         "ntrip_user": LaunchConfiguration("ntrip_user"),
                         "ntrip_password": LaunchConfiguration("ntrip_password"),
+                        "log_received_gga": ParameterValue(
+                            LaunchConfiguration("log_received_gga"), value_type=bool
+                        ),
                     }
                 ],
             ),

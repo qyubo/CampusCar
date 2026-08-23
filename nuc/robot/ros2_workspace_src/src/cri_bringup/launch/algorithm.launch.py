@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 算法层启动文件
-启动顺序：世界模型 + 动态地图
+启动顺序：世界模型 + 动态地图 + 固定经纬度线路跟随
 """
 from launch import LaunchDescription
 from launch_ros.actions import Node
@@ -19,6 +19,11 @@ def generate_launch_description():
     roadmap_config = os.path.join(
         get_package_share_directory('dynamic_roadmap'),
         'config', 'roadmap_params.yaml'
+    )
+
+    waypoint_config = os.path.join(
+        get_package_share_directory('dynamic_roadmap'),
+        'config', 'fixed_waypoint_follower_params.yaml'
     )
     
     return LaunchDescription([
@@ -38,5 +43,14 @@ def generate_launch_description():
             name='dynamic_roadmap',
             output='screen',
             parameters=[roadmap_config]
+        ),
+
+        # 固定经纬度线路跟随
+        Node(
+            package='dynamic_roadmap',
+            executable='fixed_waypoint_follower_node',
+            name='fixed_waypoint_follower_node',
+            output='screen',
+            parameters=[waypoint_config]
         ),
     ])

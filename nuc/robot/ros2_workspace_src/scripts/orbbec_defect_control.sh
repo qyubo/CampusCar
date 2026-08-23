@@ -232,11 +232,11 @@ start_all() {
   write_detect_viewer
   fuser -k 8088/tcp >/dev/null 2>&1 || true
   fuser -k 8089/tcp >/dev/null 2>&1 || true
-  start_bg camera "source /opt/ros/humble/setup.bash && ros2 launch orbbec_camera orbbec_camera.launch.py camera_model:=gemini330_series usb_port:=3-1 enable_depth:=true enable_color:=true"
+  start_bg camera "source /opt/ros/humble/setup.bash; ros2 launch orbbec_camera gemini_330_series.launch.py enable_point_cloud:=false"
   sleep 6
-  start_bg detector "source /opt/ros/humble/setup.bash; source $CRI_OVERLAY 2>/dev/null || true; export PYTHONPATH=$WS/src/cri_perception/vision_defect_detector:\${PYTHONPATH:-}; python3 -m vision_defect_detector.vision_defect_detector_node --ros-args -p image_topic:=/camera/color/image_raw -p model_path:=$MODEL -p confidence_threshold:=0.25 -p input_size:=640 -p device:=cpu -p enable_visualization:=true"
+  start_bg detector "source /opt/ros/humble/setup.bash; [ -f \"$WS/install/setup.bash\" ] && source \"$WS/install/setup.bash\"; source $CRI_OVERLAY 2>/dev/null || true; export PYTHONPATH=$WS/src/cri_perception/vision_defect_detector:\${PYTHONPATH:-}; python3 -m vision_defect_detector.vision_defect_detector_node --ros-args -p image_topic:=/camera/color/image_raw -p model_path:=$MODEL -p confidence_threshold:=0.25 -p input_size:=640 -p device:=cpu -p enable_visualization:=true"
   start_bg raw_viewer "source /opt/ros/humble/setup.bash; python3 $RAW_VIEWER"
-  start_bg detect_viewer "source /opt/ros/humble/setup.bash; source $CRI_OVERLAY 2>/dev/null || true; python3 $DETECT_VIEWER"
+  start_bg detect_viewer "source /opt/ros/humble/setup.bash; [ -f \"$WS/install/setup.bash\" ] && source \"$WS/install/setup.bash\"; source $CRI_OVERLAY 2>/dev/null || true; python3 $DETECT_VIEWER"
   echo
   echo "已启动。窗口："
   echo "  原始相机画面: http://localhost:8088/"

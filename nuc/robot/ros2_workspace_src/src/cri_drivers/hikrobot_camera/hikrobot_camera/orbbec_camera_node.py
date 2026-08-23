@@ -7,6 +7,8 @@ import rclpy
 from cv_bridge import CvBridge
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, Image
+import yaml
+from pathlib import Path
 
 try:
     from pyorbbecsdk import Config, OBError, OBFormat, OBSensorType, Pipeline
@@ -30,6 +32,7 @@ class OrbbecCameraNode(Node):
         self.declare_parameter('timeout_ms', 1000)
         self.declare_parameter('enable_color', True)
         self.declare_parameter('enable_depth', True)
+        self.declare_parameter('camera_info_url', '')
 
         self.frame_id = str(self.get_parameter('frame_id').value)
         self.depth_frame_id = str(self.get_parameter('depth_frame_id').value)
@@ -39,6 +42,7 @@ class OrbbecCameraNode(Node):
         self.timeout_ms = int(self.get_parameter('timeout_ms').value)
         self.enable_color = bool(self.get_parameter('enable_color').value)
         self.enable_depth = bool(self.get_parameter('enable_depth').value)
+        self.camera_info_url = str(self.get_parameter('camera_info_url').value)
 
         if Pipeline is None:
             raise RuntimeError('未安装 pyorbbecsdk，请先安装 Orbbec SDK Python 绑定和 udev 规则')
@@ -49,6 +53,9 @@ class OrbbecCameraNode(Node):
         self.pipeline = Pipeline()
         self.config = Config()
         self.last_error = ''
+        
+        # 加载相机标定信息
+        self.camera_info_msg = self._load_camera_info()
 
         self._configure_streams()
         self.pipeline.start(self.config)
@@ -154,11 +161,73 @@ class OrbbecCameraNode(Node):
             data = np.clip(data.astype(np.float32) * scale, 0, np.iinfo(np.uint16).max).astype(np.uint16)
         return data
 
-    def _camera_info(self, header, width: int, height: int) -> CameraInfo:
+    def _load_camera_info(self) -> CameraInfo:
+        """从 YAML 文件加载相机标定信息"""
         info = CameraInfo()
-        info.header = header
-        info.width = width
-        info.height = height
+        
+        if not self.camera_info_url:
+            self.get_logger().warn('未指定 camera_info_url，使用空的相机内参')
+            return info
+        
+        calib_path = Path(self.camera_info_url)
+        if not calib_path.exists():
+            self.get_logger().warn(f'相机标定文件不存在: {self.camera_info_url}')
+            return info
+        
+        try:
+            with open(calib_path, 'r') as f:
+                calib_data = yaml.safe_load(f)
+            
+            info.width = calib_data.get('image_width', self.width)
+            info.height = calib_data.get('image_height', self.height)
+            info.distortion_model = calib_data.get('distortion_model', 'plumb_bob')
+            
+            # 相机内参矩阵
+            if 'camera_matrix' in calib_data:
+                info.k = calib_data['camera_matrix']['data']
+            
+            # 畸变系数
+            if 'distortion_coefficients' in calib_data:
+                info.d = calib_data['distortion_coefficients']['data']
+            
+            # 矫正矩阵
+            if 'rectification_matrix' in calib_data:
+                info.r = calib_data['rectification_matrix']['data']
+            else:
+                info.r = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+            
+            # 投影矩阵
+            if 'projection_matrix' in calib_data:
+                info.p = calib_data['projection_matrix']['data']
+            
+            self.get_logger().info(f'成功加载相机标定: {self.camera_info_url}')
+            self.get_logger().info(f'  分辨率: {info.width}x{info.height}')
+            self.get_logger().info(f'  畸变模型: {info.distortion_model}')
+            
+        except Exception as e:
+            self.get_logger().error(f'加载相机标定文件失败: {e}')
+        
+        return info
+
+    def _camera_info(self, header, width: int, height: int) -> CameraInfo:
+        """返回带时间戳的 camera_info"""
+        info = CameraInfo()
+        if self.camera_info_msg.k:
+            # 使用加载的标定信息
+            info = CameraInfo()
+            info.header = header
+            info.width = self.camera_info_msg.width
+            info.height = self.camera_info_msg.height
+            info.distortion_model = self.camera_info_msg.distortion_model
+            info.d = self.camera_info_msg.d
+            info.k = self.camera_info_msg.k
+            info.r = self.camera_info_msg.r
+            info.p = self.camera_info_msg.p
+        else:
+            # 使用空信息
+            info.header = header
+            info.width = width
+            info.height = height
         return info
 
     def _warn_once(self, message: str) -> None:
